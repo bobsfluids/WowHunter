@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World of Warcraft Duck Hunter</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #000;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><defs><linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="%23051937"/><stop offset="100%" stop-color="%23004d7a"/></linearGradient></defs><rect width="800" height="450" fill="url(%23sky)"/><rect width="800" height="150" y="450" fill="%23004d1a"/><circle cx="700" cy="80" r="60" fill="%23ffcc00"/></svg>');
+      background-size: cover;
+      cursor: crosshair;
+    }
+    
+    .target {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-color: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      display: none;
+    }
+    
+    .murloc {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      transition: transform 0.1s;
+    }
+    
+    .murloc.hit {
+      transform: rotate(180deg);
+      transition: transform 0.5s;
+    }
+    
+    #score-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 100;
+    }
+    
+    #timer {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 100;
+    }
+    
+    #ammo {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 100;
+    }
+    
+    #ammo-icons {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 5px;
+    }
+    
+    .ammo-icon {
+      width: 20px;
+      height: 30px;
+      margin-left: 5px;
+      background-color: #ffcc00;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+    
+    #start-screen, #game-over {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+    }
+    
+    #game-over {
+      display: none;
+    }
+    
+    .screen-title {
+      color: #ffcc00;
+      font-size: 48px;
+      text-shadow: 0 0 10px #ffcc00;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    
+    .start-btn {
+      padding: 15px 40px;
+      font-size: 24px;
+      background-color: #ffcc00;
+      border: none;
+      border-radius: 5px;
+      color: #000;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .start-btn:hover {
+      background-color: #fff;
+      transform: scale(1.1);
+    }
+    
+    .creature-type {
+      margin-top: 20px;
+      color: #fff;
+    }
+    
+    .creature-btn {
+      padding: 10px 20px;
+      margin: 0 10px;
+      font-size: 18px;
+      background-color: #004d7a;
+      border: 2px solid #ffcc00;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .creature-btn.selected {
+      background-color: #ffcc00;
+      color: #000;
+    }
+    
+    .difficulty {
+      margin-top: 20px;
+      color: #fff;
+    }
+    
+    .difficulty-btn {
+      padding: 10px 20px;
+      margin: 0 10px;
+      font-size: 18px;
+      background-color: #004d7a;
+      border: 2px solid #ffcc00;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .difficulty-btn.selected {
+      background-color: #ffcc00;
+      color: #000;
+    }
+    
+    #final-score {
+      color: #fff;
+      font-size: 24px;
+      margin: 20px 0;
+    }
+    
+    .gunshot {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-color: #ffcc00;
+      border-radius: 50%;
+      opacity: 0.8;
+      pointer-events: none;
+      z-index: 50;
+      animation: gunshot 0.3s forwards;
+    }
+    
+    @keyframes gunshot {
+      0% {
+        transform: scale(0.3);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+    }
+    
+    .reload-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    
+    .reload-overlay.active {
+      opacity: 1;
+    }
+    
+    .reload-text {
+      color: #ffcc00;
+      font-size: 36px;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    #sound-toggle {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: #fff;
+      font-size: 16px;
+      background: none;
+      border: 2px solid #fff;
+      border-radius: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="score-panel">Score: <span id="score">0</span></div>
+    <div id="timer">Time: <span id="time-left">60</span>s</div>
+    <div id="ammo">
+      Ammo: <span id="ammo-count">3</span>
+      <div id="ammo-icons"></div>
+    </div>
+    <div class="target"></div>
+    <div class="reload-overlay">
+      <div class="reload-text">RELOADING...</div>
+    </div>
+    <button id="sound-toggle">Sound: ON</button>
+  </div>
+  
+  <div id="start-screen">
+    <h1 class="screen-title">World of Warcraft<br>Duck Hunter</h1>
+    <div class="creature-type">
+      <p>Select Target:</p>
+      <div>
+        <button class="creature-btn selected" data-creature="murloc">Murlocs</button>
+        <button class="creature-btn" data-creature="boar">Boars</button>
+        <button class="creature-btn" data-creature="mixed">Mixed</button>
+      </div>
+    </div>
+    <div class="difficulty">
+      <p>Select Difficulty:</p>
+      <div>
+        <button class="difficulty-btn selected" data-difficulty="easy">Easy</button>
+        <button class="difficulty-btn" data-difficulty="medium">Medium</button>
+        <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+      </div>
+    </div>
+    <button class="start-btn">Start Game</button>
+  </div>
+  
+  <div id="game-over">
+    <h1 class="screen-title">Game Over!</h1>
+    <div id="final-score">Your Score: 0</div>
+    <button class="start-btn">Play Again</button>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Game variables
+      let score = 0;
+      let timeLeft = 60;
+      let gameRunning = false;
+      let gameTimer;
+      let ammo = 3;
+      let maxAmmo = 3;
+      let lastReloadTime = 0;
+      let reloadTime = 1500; // 1.5 seconds
+      let creatureType = 'murloc';
+      let difficulty = 'easy';
+      let speedMultiplier = 1;
+      let spawnRate = 2000;
+      let soundEnabled = true;
+      
+      // DOM Elements
+      const gameContainer = document.getElementById('game-container');
+      const scoreEl = document.getElementById('score');
+      const timeLeftEl = document.getElementById('time-left');
+      const startScreen = document.getElementById('start-screen');
+      const gameOverScreen = document.getElementById('game-over');
+      const finalScoreEl = document.getElementById('final-score');
+      const startBtns = document.querySelectorAll('.start-btn');
+      const creatureBtns = document.querySelectorAll('.creature-btn');
+      const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+      const ammoEl = document.getElementById('ammo-count');
+      const ammoIcons = document.getElementById('ammo-icons');
+      const target = document.querySelector('.target');
+      const reloadOverlay = document.querySelector('.reload-overlay');
+      const soundToggle = document.getElementById('sound-toggle');
+      
+      // Sounds
+      const gunshot = new Audio('data:audio/wav;base64,UklGRtYnAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YbInAAAAAP//vwABAMD/AAG//wABvwAAAb8AvwC/AL4Avf+9/73+vP27+7r6ufi49rf1tvS18rTxs++y7rHtsOuv6q7preit567mreSs5K3lreat56/pr+qx7LLute+38bn0uva8+L76wPzC/sUAxwLJBMoGywjMCs0MzQ7OEM4SzxTPFs8YzxrPG88czx7PH88hzynQLdAx0jbUO9U/10TYSdlN2lLbVtxb3V/eZN5p32/fc+B34Xzhhg==');
+      const reload = new Audio('data:audio/wav;base64,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
